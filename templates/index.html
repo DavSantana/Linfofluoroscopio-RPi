@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Linfofluoroscopio</title>
+</head>
+<body>
+    <h1>Transmisión en vivo</h1>
+    <img src="{{ url_for('video_feed') }}" width="640" height="480">
+    <br><br>
+    <button onclick="captureImage()">Capturar imagen</button>
+
+    <script>
+        function captureImage() {
+            fetch('/capture', { method: 'POST' })
+                .then(res => res.text())
+                .then(data => alert(data));
+        }
+    </script>
+</body>
+</html>
