@@ -6,15 +6,19 @@
 <body>
     <h1>Transmisión en vivo</h1>
     <img src="{{ url_for('video_feed') }}" width="640" height="480">
-    <br><br>
-    <button onclick="captureImage()">Capturar imagen</button>
+    <br>
+    <button id="captureBtn">Capturar imagen</button>
 
     <script>
-        function captureImage() {
-            fetch('/capture', { method: 'POST' })
-                .then(res => res.text())
-                .then(data => alert(data));
-        }
+        document.getElementById("captureBtn").addEventListener("click", function() {
+            // Llama a la ruta /capture en nuestro backend
+            fetch('/capture')
+                .then(response => response.json())
+                .then(data => {
+                    // Muestra una alerta con el mensaje del servidor
+                    alert(data.message);
+                });
+        });
     </script>
 </body>
 </html>

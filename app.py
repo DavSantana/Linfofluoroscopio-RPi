@@ -1,38 +1,46 @@
-from flask import Flask, render_template, Response, request
+# app.py
+from flask import Flask, render_template, Response, jsonify
 from camera import Camera
-import time  # Para timestamp de archivos
+import os
+from datetime import datetime
 
 app = Flask(__name__)
-camera = Camera()
+
+# Crea una carpeta para las capturas si no existe
+if not os.path.exists('captures'):
+    os.makedirs('captures')
 
 @app.route('/')
 def index():
-    return render_template('index.html')  # Página principal
+    return render_template('index.html')
+
+def gen(camera):
+    while True:
+        frame = camera.get_frame()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
 @app.route('/video_feed')
 def video_feed():
-    def generate():
-        while True:
-            frame = camera.get_frame()
-            if frame:
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-    return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    return Response(gen(Camera()),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
-# NUEVA FUNCIÓN AGREGADA AQUÍ ⬇️
-@app.route('/capture', methods=['POST'])
+# --- NUEVA RUTA PARA CAPTURAR ---
+@app.route('/capture')
 def capture():
-    frame = camera.get_frame()
-    if frame:
-        timestamp = time.strftime("%Y%m%d-%H%M%S")
-        with open(f"capturas/{timestamp}.jpg", "wb") as f:
-            f.write(frame)
-        return "Imagen guardada", 200
-    return "Error al capturar", 500
+    # Generamos un nombre de archivo único con la fecha y hora
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    filename = f"captures/capture_{timestamp}.jpg"
 
-# NO olvides este bloque al final
+    # Obtenemos un frame de la cámara y lo guardamos
+    camera = Camera()
+    frame_bytes = camera.get_frame()
+    with open(filename, 'wb') as f:
+        f.write(frame_bytes)
+
+    # Devolvemos un mensaje de éxito en formato JSON
+    return jsonify(message=f"¡Imagen guardada como {filename}!")
+# --------------------------------
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
-
-
-
+    app.run(host='0.0.0.0', debug=True)
