@@ -1,7 +1,14 @@
 <!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
-    <title>Linfofluoroscopio</title>
+    <title>Linfofluoroscopio - En Vivo</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin-top: 20px; }
+        #statusMessage { margin-top: 15px; font-style: italic; color: green; height: 20px; }
+        img { border: 2px solid #ddd; border-radius: 8px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin-top: 15px; }
+    </style>
 </head>
 <body>
     <h1>Transmisión en vivo</h1>
@@ -9,14 +16,31 @@
     <br>
     <button id="captureBtn">Capturar imagen</button>
 
+    <p id="statusMessage"></p>
+
     <script>
         document.getElementById("captureBtn").addEventListener("click", function() {
+            // Referencia al párrafo de estado
+            const statusElement = document.getElementById("statusMessage");
+            statusElement.textContent = 'Capturando...'; // Mensaje instantáneo
+
             // Llama a la ruta /capture en nuestro backend
             fetch('/capture')
                 .then(response => response.json())
                 .then(data => {
-                    // Muestra una alerta con el mensaje del servidor
-                    alert(data.message);
+                    // Actualiza el párrafo con el mensaje del servidor
+                    statusElement.textContent = data.message;
+                    // Hacemos que el mensaje desaparezca después de 5 segundos
+                    setTimeout(function() {
+                        statusElement.textContent = '';
+                    }, 5000);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    statusElement.textContent = 'Error al capturar la imagen.';
+                    setTimeout(function() {
+                        statusElement.textContent = '';
+                    }, 5000);
                 });
         });
     </script>

@@ -1,38 +1,35 @@
-# camera.py (Versión final con picamera2)
+# camera.py (Versión final y robusta con Lock)
 import cv2
 from picamera2 import Picamera2
 import time
+import threading # <--- CAMBIO 1: Importamos la librería de sincronización
 
 class Camera(object):
     def __init__(self):
         print("Inicializando cámara con picamera2...")
-        # Inicializa la cámara usando la librería nativa
         self.picam2 = Picamera2()
-        
-        # Configura la resolución para la previsualización/captura
         config = self.picam2.create_preview_configuration(main={"size": (640, 480)})
         self.picam2.configure(config)
         
-        # Inicia la cámara
-        self.picam2.start()
+        # --- CAMBIO 2: Creamos el "semáforo" (Lock) ---
+        self.frame_lock = threading.Lock()
+        # ---------------------------------------------
         
-        # Dale tiempo a la cámara para que se ajuste a la luz
+        self.picam2.start()
         time.sleep(2)
         print("Cámara inicializada con éxito.")
 
     def __del__(self):
-        # Detiene la cámara al eliminar el objeto
         self.picam2.stop()
 
     def get_frame(self):
-        # Captura un frame como un array de NumPy (formato que OpenCV entiende)
-        frame = self.picam2.capture_array()
+        # --- CAMBIO 3: Usamos el "semáforo" para proteger el acceso ---
+        with self.frame_lock:
+            # Capturamos el frame solo cuando tengamos el "paso"
+            frame = self.picam2.capture_array()
+        # -------------------------------------------------------------
         
-        # Codifica el frame a formato JPEG
+        # El resto del procesamiento puede ocurrir fuera del lock
+        frame = cv2.flip(frame, -1) # Corregimos la orientación
         ret, jpeg = cv2.imencode('.jpg', frame)
-
-         # ¡NUEVA LÍNEA! Voltea la imagen vertical y horizontalmente (rotación de 180°)
-        frame = cv2.flip(frame, -1)
-        
-        # Retorna los bytes de la imagen
         return jpeg.tobytes()
