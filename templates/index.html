@@ -14,11 +14,13 @@
         form { display: flex; flex-direction: column; gap: 10px; }
         .form-group { display: flex; flex-direction: column; }
         label { margin-bottom: 5px; font-weight: bold; }
-        input[type="text"], input[type="number"], select { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
+        input[type="text"], input[type="number"], select { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; width: 100%; box-sizing: border-box; }
         button, input[type="submit"] { padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; transition: background-color 0.3s; }
         button:hover, input[type="submit"]:hover { background-color: #0056b3; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
         #statusMessage { text-align: center; margin-top: 15px; font-style: italic; color: green; height: 20px; font-weight: bold; }
-        .study-selection { display: flex; align-items: center; gap: 15px; justify-content: center; }
+        .study-selection { display: flex; flex-direction: column; align-items: center; gap: 15px; }
+        .study-buttons { display: flex; gap: 10px; }
     </style>
 </head>
 <body>
@@ -31,16 +33,19 @@
                 <select name="patient_id" id="patient_id_selector">
                     <option value="">-- Elija un paciente --</option>
                     {% for patient in patients %}
-                        <option value="{{ patient['id'] }}">{{ patient['nombre'] }} {{ patient['apellido'] }} (C.I: {{ patient['cedula'] }})</option>
+                        <option value="{{ patient.firestore_id }}">{{ patient.nombre }} {{ patient.apellido }} (C.I: {{ patient.cedula }})</option>
                     {% endfor %}
                 </select>
-                <button id="startStudyBtn">Iniciar Estudio</button>
+                <div class="study-buttons">
+                    <button id="startStudyBtn">Iniciar Estudio</button>
+                    <button id="viewHistoryBtn" disabled>Ver Historial</button>
+                </div>
             </div>
         </div>
 
         <div class="section video-container">
             <h2>2. Transmisión y Captura</h2>
-            <img src="{{ url_for('video_feed') }}" width="640" height="480">
+            <img src="{{ url_for('video_feed') }}">
             <br>
             <button id="captureBtn">Capturar Imagen</button>
             <p id="statusMessage"></p>
@@ -75,15 +80,27 @@
     </div>
 
     <script>
-        const captureBtn = document.getElementById("captureBtn");
         const patientSelector = document.getElementById("patient_id_selector");
-        const statusElement = document.getElementById("statusMessage");
+        const viewHistoryBtn = document.getElementById("viewHistoryBtn");
         const startStudyBtn = document.getElementById("startStudyBtn");
+        const captureBtn = document.getElementById("captureBtn");
+        const statusElement = document.getElementById("statusMessage");
         
-        let activePatientId = null; // Variable para guardar el paciente activo del estudio
+        let activePatientId = null; // Ahora guardará el firestore_id
         let activePatientName = '';
 
-        // Lógica para el botón "Iniciar Estudio"
+        patientSelector.addEventListener("change", function() {
+            viewHistoryBtn.disabled = !this.value;
+        });
+
+        viewHistoryBtn.addEventListener("click", function() {
+            const selectedId = patientSelector.value;
+            if (selectedId) {
+                // CAMBIO: La URL ahora se construye con el firestore_id
+                window.location.href = `/patient/${selectedId}`;
+            }
+        });
+
         startStudyBtn.addEventListener("click", function() {
             const selectedId = patientSelector.value;
             if (selectedId) {
@@ -92,50 +109,38 @@
                 statusElement.style.color = 'blue';
                 statusElement.textContent = `Estudio iniciado para: ${activePatientName}`;
             } else {
-                alert("Por favor, seleccione un paciente del menú desplegable primero.");
+                alert("Por favor, seleccione un paciente.");
             }
         });
 
-        // Lógica para el botón "Capturar imagen"
         captureBtn.addEventListener("click", function() {
-            // Verificamos si se ha iniciado un estudio
             if (!activePatientId) {
-                alert("Por favor, inicie un estudio para un paciente antes de capturar una imagen.");
-                return; // Detenemos la ejecución si no hay paciente activo
+                alert("Por favor, inicie un estudio para un paciente.");
+                return;
             }
-
             statusElement.style.color = 'green';
             statusElement.textContent = 'Capturando...';
-
-            // Construimos la URL con el ID del paciente como parámetro
-            const url = `/capture?patient_id=${activePatientId}`;
+            // CAMBIO: El parámetro que se envía al backend ahora es 'firestore_patient_id'
+            const url = `/capture?firestore_patient_id=${activePatientId}`;
 
             fetch(url)
-                .then(response => {
-                    if (!response.ok) {
-                        // Si el servidor responde con un error (ej. 400), lo manejamos
-                        throw new Error('Respuesta del servidor no fue OK');
-                    }
-                    return response.json();
-                })
+                .then(response => response.json())
                 .then(data => {
                     statusElement.textContent = data.message;
                     setTimeout(() => { 
-                        // Regresamos el mensaje al paciente activo
-                        statusElement.style.color = 'blue';
-                        statusElement.textContent = `Estudio en curso para: ${activePatientName}`;
+                        if (activePatientId) { // Re-confirmar que un estudio sigue activo
+                           statusElement.style.color = 'blue';
+                           statusElement.textContent = `Estudio en curso para: ${activePatientName}`;
+                        } else {
+                           statusElement.textContent = '';
+                        }
                     }, 5000);
                 })
                 .catch(error => {
                     console.error('Error:', error);
                     statusElement.textContent = 'Error al capturar la imagen.';
-                    setTimeout(() => { 
-                        statusElement.style.color = 'blue';
-                        statusElement.textContent = `Estudio en curso para: ${activePatientName}`;
-                    }, 5000);
                 });
         });
     </script>
 </body>
 </html>
-

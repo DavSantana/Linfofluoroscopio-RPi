@@ -1,0 +1,17 @@
+# Entorno Virtual
+venv/
+
+# Archivos de caché de Python
+__pycache__/
+*.pyc
+
+# Base de datos local
+*.db
+*.db-journal
+
+# Archivos de credenciales sensibles
+firebase_credentials.json
+
+# Archivos y carpetas temporales
+temp_captures/
+ngrok*
