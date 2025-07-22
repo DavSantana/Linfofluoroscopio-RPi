@@ -5,8 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Historial de {{ patient.nombre }} {{ patient.apellido }}</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f8f9fa; color: #333; }
-        .container { max-width: 900px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 15px rgba(0,0,0,0.1); }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8f9fa; color: #333; }
+        .header { background-color: #0056b3; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header .user-info { font-size: 0.9em; }
+        .header .logout-btn { background-color: #dc3545; color: white; text-decoration: none; padding: 8px 15px; border-radius: 4px; font-size: 14px; }
+        .header .logout-btn:hover { background-color: #c82333; }
+        .container { max-width: 900px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 15px rgba(0,0,0,0.1); margin-top: 20px; margin-bottom: 20px; }
         h1, h2 { color: #0056b3; }
         .patient-info { background-color: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #dee2e6; }
         .patient-info p { margin: 5px 0; font-size: 1.1em; }
@@ -15,7 +19,7 @@
         .gallery-item img { width: 100%; height: auto; display: block; background-color: #eee; }
         .gallery-item .info { background-color: #f4f4f4; padding: 8px; margin: 0; font-size: 0.9em; color: #555; }
         .gallery-item .actions { padding: 8px; background-color: #f4f4f4; border-top: 1px solid #ddd; }
-        .no-captures { font-style: italic; color: #777; }
+        .no-captures { font-style: italic; color: #777; text-align: center; padding: 20px; }
         .back-link { display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; transition: background-color 0.3s; }
         .back-link:hover { background-color: #0056b3; }
         button, .button { padding: 8px 15px; font-size: 14px; cursor: pointer; color: white; border: none; border-radius: 4px; transition: background-color 0.3s; }
@@ -31,13 +35,20 @@
     </style>
 </head>
 <body>
+    <div class="header">
+        <div class="user-info">
+            Iniciaste sesión como: <strong>{{ user.email }}</strong> (Rol: {{ user.role }})
+        </div>
+        <a href="{{ url_for('logout') }}" class="logout-btn">Cerrar Sesión</a>
+    </div>
+
     <div class="container">
         <h1>Historial Clínico del Paciente</h1>
         <div class="patient-info">
             <h2>{{ patient.nombre }} {{ patient.apellido }}</h2>
             <p><strong>Cédula:</strong> {{ patient.cedula }}</p>
-            <p><strong>Edad:</strong> {{ patient.edad }} años</p>
-            <p><strong>Teléfono:</strong> {{ patient.telefono }}</p>
+            <p><strong>Edad:</strong> {{ patient.edad or 'No especificada' }} años</p>
+            <p><strong>Teléfono:</strong> {{ patient.telefono or 'No especificado' }}</p>
         </div>
         <h2>Galería de Capturas</h2>
         <hr>
@@ -45,58 +56,65 @@
             <div class="gallery">
                 {% for capture in captures %}
                 <div class="gallery-item">
-                    <img src="{{ capture.cloud_url }}" alt="Captura para {{ patient.nombre }}">
+                    <a href="{{ capture.cloud_url }}" target="_blank">
+                        <img src="{{ capture.cloud_url }}" alt="Captura para {{ patient.nombre }}">
+                    </a>
                     <div class="info">
-                        <strong>Fecha:</strong> {{ capture.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}
+                        <strong>Fecha:</strong> {{ capture.timestamp.strftime('%Y-%m-%d %H:%M:%S') if capture.timestamp else 'N/A' }}
                     </div>
+                    {% if user.role == 'doctor' %}
                     <div class="actions">
                         <form action="{{ url_for('delete_capture', firestore_capture_id=capture.firestore_id) }}" method="POST">
-                            <button type="button" class="button delete-capture-btn delete-initial-btn">Eliminar Imagen</button>
-                            <span class="delete-confirm-span" style="display:none;">
+                            <button type="button" class="button delete-capture-btn delete-initial-btn">Eliminar</button>
+                            <span class="delete-confirm-span">
                                 <span>¿Seguro?</span>
                                 <button type="submit" class="button confirm-btn">Sí</button>
                                 <button type="button" class="button cancel-btn delete-cancel-btn">No</button>
                             </span>
                         </form>
                     </div>
+                    {% endif %}
                 </div>
                 {% endfor %}
             </div>
         {% else %}
             <p class="no-captures">No hay imágenes capturadas para este paciente todavía.</p>
         {% endif %}
+
         <div class="actions-container">
-            <a href="{{ url_for('index') }}" class="back-link">← Volver</a>
+            <a href="{{ url_for('index') }}" class="back-link">← Volver al Panel</a>
+            {% if user.role == 'doctor' %}
             <form action="{{ url_for('delete_patient', firestore_patient_id=patient.firestore_id) }}" method="POST">
                 <button type="button" class="button delete-patient-btn delete-initial-btn">Eliminar Paciente</button>
-                <span class="delete-confirm-span" style="display:none;">
+                <span class="delete-confirm-span">
                     <span>¿Seguro?</span>
                     <button type="submit" class="button confirm-btn">Sí, eliminar</button>
                     <button type="button" class="button cancel-btn delete-cancel-btn">No</button>
                 </span>
             </form>
+            {% endif %}
         </div>
     </div>
     
     <script>
-        const deleteForms = document.querySelectorAll('form[action*="delete"]');
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('form[action*="delete"]').forEach(form => {
+                const initialBtn = form.querySelector('.delete-initial-btn');
+                const confirmSpan = form.querySelector('.delete-confirm-span');
+                const cancelBtn = form.querySelector('.delete-cancel-btn');
 
-        deleteForms.forEach(form => {
-            const initialBtn = form.querySelector('.delete-initial-btn');
-            const confirmSpan = form.querySelector('.delete-confirm-span');
-            const cancelBtn = form.querySelector('.delete-cancel-btn');
+                if (initialBtn && confirmSpan && cancelBtn) {
+                    initialBtn.addEventListener('click', () => {
+                        initialBtn.style.display = 'none';
+                        confirmSpan.style.display = 'flex';
+                    });
 
-            if (initialBtn && confirmSpan && cancelBtn) {
-                initialBtn.addEventListener('click', () => {
-                    initialBtn.style.display = 'none';
-                    confirmSpan.style.display = 'flex';
-                });
-
-                cancelBtn.addEventListener('click', () => {
-                    initialBtn.style.display = 'inline-block';
-                    confirmSpan.style.display = 'none';
-                });
-            }
+                    cancelBtn.addEventListener('click', () => {
+                        initialBtn.style.display = 'inline-block';
+                        confirmSpan.style.display = 'none';
+                    });
+                }
+            });
         });
     </script>
 </body>

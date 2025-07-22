@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Iniciar Sesión - Linfofluoroscopio</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f4f4f4; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-container { background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; width: 100%; max-width: 400px; }
+        h1 { color: #0056b3; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; text-align: left; }
+        label { font-weight: bold; display: block; margin-bottom: 5px; }
+        input[type="email"], input[type="password"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; transition: background-color 0.3s; }
+        button:hover { background-color: #0056b3; }
+        .info-link { margin-top: 20px; }
+        #error-message { color: #dc3545; margin-top: 15px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1>Linfofluoroscopio</h1>
+        <form id="login-form">
+            <div class="form-group">
+                <label for="email">Correo Electrónico:</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Contraseña:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit">Iniciar Sesión</button>
+        </form>
+        <p id="error-message" style="display:none;"></p>
+        <p class="info-link">
+            ¿No tienes una cuenta? <a href="{{ url_for('register') }}">Regístrate</a>
+        </p>
+    </div>
+
+    <script type="module">
+        // ADVERTENCIA: Reemplaza esto con tu configuración real de Firebase
+        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyA4o7SijbV1r9OPU9x5ZlmhRBSgNWHgR_o",
+  authDomain: "linfofluoroscopio-tesis.firebaseapp.com",
+  projectId: "linfofluoroscopio-tesis",
+  storageBucket: "linfofluoroscopio-tesis.firebasestorage.app",
+  messagingSenderId: "632604952114",
+  appId: "1:632604952114:web:b5b1e50f07413d975f1e2b",
+  measurementId: "G-DQ2EMQ4F3F"
+};
+
+        // --- Lógica de Firebase ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const loginForm = document.getElementById('login-form');
+        const errorMessage = document.getElementById('error-message');
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = loginForm.email.value;
+            const password = loginForm.password.value;
+            errorMessage.style.display = 'none';
+
+            try {
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+                const token = await user.getIdToken();
+
+                const response = await fetch('/session_login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: token })
+                });
+
+                if (response.ok) {
+                    window.location.href = "{{ url_for('index') }}";
+                } else {
+                    const errorData = await response.json();
+                    errorMessage.textContent = errorData.message || 'Error del servidor.';
+                    errorMessage.style.display = 'block';
+                }
+            } catch (error) {
+                errorMessage.textContent = 'Credenciales no válidas. Por favor, inténtalo de nuevo.';
+                errorMessage.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
