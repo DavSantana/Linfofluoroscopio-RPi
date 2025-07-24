@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -14,6 +14,20 @@
         h1, h2 { color: #0056b3; }
         .patient-info { background-color: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #dee2e6; }
         .patient-info p { margin: 5px 0; font-size: 1.1em; }
+        
+        /* Estilos para la nueva sección colapsable */
+        .collapsible { background-color: #f1f1f1; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 20px; }
+        .collapsible summary { font-weight: bold; font-size: 1.2em; color: #0056b3; padding: 15px; cursor: pointer; display: block; }
+        .collapsible[open] summary { border-bottom: 1px solid #ddd; }
+        .form-section { padding: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-weight: bold; margin-bottom: 5px; }
+        .form-group input[type="text"], .form-group input[type="date"], .form-group textarea { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ccc; box-sizing: border-box; }
+        .form-group .checkbox-group { display: flex; align-items: center; gap: 10px; }
+        .form-group input[type="checkbox"] { width: auto; }
+        .form-submit-btn { background-color: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-size: 1em; }
+        .form-submit-btn:hover { background-color: #218838; }
+
         .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; }
         .gallery-item { border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-align: center; }
         .gallery-item img { width: 100%; height: auto; display: block; background-color: #eee; }
@@ -50,6 +64,43 @@
             <p><strong>Edad:</strong> {{ patient.edad or 'No especificada' }} años</p>
             <p><strong>Teléfono:</strong> {{ patient.telefono or 'No especificado' }}</p>
         </div>
+
+        <!-- INICIO: SECCIÓN DE HISTORIAL CLÍNICO CORREGIDA -->
+        <details class="collapsible" {% if patient.history %}open{% endif %}>
+            <summary>Historial Clínico Detallado</summary>
+            <div class="form-section">
+                <form action="{{ url_for('update_history', firestore_patient_id=patient.firestore_id) }}" method="POST">
+                    <div class="form-group">
+                        <label for="fecha_sintomas">3.1 Fecha de Inicio de los Síntomas</label>
+                        <!-- CORRECCIÓN: Se comprueba si 'history' y 'fecha_sintomas' existen -->
+                        <input type="date" id="fecha_sintomas" name="fecha_sintomas" value="{{ patient.history.fecha_sintomas if patient.history and patient.history.fecha_sintomas else '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="fecha_diagnostico">3.2 Fecha de Diagnóstico</label>
+                        <input type="date" id="fecha_diagnostico" name="fecha_diagnostico" value="{{ patient.history.fecha_diagnostico if patient.history and patient.history.fecha_diagnostico else '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="diagnostico_medico">3.3 Diagnóstico Médico</label>
+                        <textarea id="diagnostico_medico" name="diagnostico_medico" rows="3">{{ patient.history.diagnostico_medico if patient.history else '' }}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>3.5 Tratamiento Farmacológico</label>
+                        <textarea name="tratamiento_farmacologico" rows="2" placeholder="Describa el tratamiento farmacológico...">{{ patient.history.tratamiento_farmacologico if patient.history else '' }}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>3.6 Tratamiento Conservador</label>
+                        <textarea name="tratamiento_conservador" rows="2" placeholder="Describa el tratamiento conservador (drenaje, vendaje, etc.)...">{{ patient.history.tratamiento_conservador if patient.history else '' }}</textarea>
+                    </div>
+                     <div class="form-group">
+                        <label>3.7 Tratamiento Quirúrgico</label>
+                        <textarea name="tratamiento_quirurgico" rows="2" placeholder="Describa el tratamiento quirúrgico...">{{ patient.history.tratamiento_quirurgico if patient.history else '' }}</textarea>
+                    </div>
+                    <button type="submit" class="form-submit-btn">Guardar Historial</button>
+                </form>
+            </div>
+        </details>
+        <!-- FIN: SECCIÓN DE HISTORIAL CLÍNICO CORREGIDA -->
+
         <h2>Galería de Capturas</h2>
         <hr>
         {% if captures %}

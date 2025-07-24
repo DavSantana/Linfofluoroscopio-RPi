@@ -284,6 +284,40 @@ def add_patient():
     except Exception as e:
         return f"Error al guardar el paciente: {e}"
 
+@app.route('/update_history/<string:firestore_patient_id>', methods=['POST'])
+@login_required
+def update_history(firestore_patient_id):
+    """
+    Actualiza el historial clínico de un paciente en Firestore.
+    """
+    allowed_roles = ['secretaria', 'doctor']
+    if session['user']['role'] not in allowed_roles:
+        return "Acceso denegado.", 403
+
+    try:
+        history_data = {
+            'fecha_sintomas': request.form.get('fecha_sintomas'),
+            'fecha_diagnostico': request.form.get('fecha_diagnostico'),
+            'diagnostico_medico': request.form.get('diagnostico_medico'),
+            'tratamiento_farmacologico': request.form.get('tratamiento_farmacologico'),
+            'tratamiento_conservador': request.form.get('tratamiento_conservador'),
+            'tratamiento_quirurgico': request.form.get('tratamiento_quirurgico'),
+        }
+
+        patient_ref = db_firestore.collection('patients').document(firestore_patient_id)
+        
+        # Usar .update() para añadir o modificar un campo anidado 'history'.
+        patient_ref.update({
+            'history': history_data
+        })
+
+        print(f"Historial clínico actualizado para el paciente {firestore_patient_id}")
+        return redirect(url_for('patient_detail', firestore_patient_id=firestore_patient_id))
+
+    except Exception as e:
+        print(f"Error al actualizar el historial: {e}")
+        return "Ocurrió un error al guardar los datos.", 500
+
 @app.route('/capture')
 @login_required
 def capture():
@@ -299,10 +333,8 @@ def capture():
         timestamp_obj = datetime.now()
         timestamp_str = timestamp_obj.strftime("%Y-%m-%d_%H-%M-%S")
         
-        # Crear una ruta única en Storage para la imagen
         destination_blob_name = f"pacientes/{firestore_patient_id}/capturas/{timestamp_str}.jpg"
         
-        # Guardar la imagen temporalmente en el servidor
         temp_dir = 'temp_captures'
         os.makedirs(temp_dir, exist_ok=True)
         local_file_path = os.path.join(temp_dir, f"{timestamp_str}.jpg")
@@ -311,14 +343,11 @@ def capture():
         with open(local_file_path, 'wb') as f:
             f.write(frame_bytes)
             
-        # Subir la imagen a Firebase Storage
         cloud_image_url = upload_to_storage(local_file_path, destination_blob_name)
         
-        # Eliminar la imagen temporal
         os.remove(local_file_path)
         
         if cloud_image_url:
-            # Guardar la información de la captura en Firestore
             capture_data = {
                 'patient_firestore_id': firestore_patient_id,
                 'cloud_url': cloud_image_url,
