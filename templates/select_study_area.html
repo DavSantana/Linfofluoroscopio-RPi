@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale-1.0">
+    <title>Seleccionar Zona de Estudio</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="header">
+        <div class="user-info">
+            Sesión iniciada como: <strong>{{ user.email }}</strong> (Rol: {{ user.role }})
+        </div>
+        <a href="{{ url_for('logout') }}" class="logout-btn">Cerrar Sesión</a>
+    </div>
+    <div class="container">
+        <a href="{{ url_for('patient_list') }}" class="button back-link">← Volver a la Lista</a>
+        <h1 style="margin-top: 20px;">Seleccionar Zona de Estudio para {{ patient.nombre }}</h1>
+        <form action="{{ url_for('start_study', firestore_patient_id=patient.firestore_id) }}" method="POST" class="report-form" style="margin-top: 30px;">
+            <fieldset>
+                <legend>Extremidad a Evaluar</legend>
+                <div class="checkbox-grid">
+                    <div class="checkbox-item">
+                        <input type="radio" name="study_area" value="Brazo Derecho" id="brazo_d" required>
+                        <label for="brazo_d">Brazo Derecho</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="radio" name="study_area" value="Brazo Izquierdo" id="brazo_i">
+                        <label for="brazo_i">Brazo Izquierdo</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="radio" name="study_area" value="Pierna Derecha" id="pierna_d">
+                        <label for="pierna_d">Pierna Derecha</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="radio" name="study_area" value="Pierna Izquierda" id="pierna_i">
+                        <label for="pierna_i">Pierna Izquierda</label>
+                    </div>
+                </div>
+            </fieldset>
+            <button type="submit" class="button form-submit-btn">Continuar a Captura</button>
+        </form>
+    </div>
+</body>
+</html>

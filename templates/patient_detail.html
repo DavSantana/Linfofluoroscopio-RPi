@@ -1,105 +1,81 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Historial de {{ patient.nombre }} {{ patient.apellido }}</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8f9fa; color: #333; }
-        .header { background-color: #0056b3; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
-        .header .user-info { font-size: 0.9em; }
-        .header .logout-btn { background-color: #dc3545; color: white; text-decoration: none; padding: 8px 15px; border-radius: 4px; font-size: 14px; }
-        .header .logout-btn:hover { background-color: #c82333; }
-        .container { max-width: 900px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 15px rgba(0,0,0,0.1); margin-top: 20px; margin-bottom: 20px; }
-        h1, h2 { color: #0056b3; }
-        .patient-info { background-color: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #dee2e6; }
-        .patient-info p { margin: 5px 0; font-size: 1.1em; }
-        
-        /* Estilos para la nueva sección colapsable */
-        .collapsible { background-color: #f1f1f1; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 20px; }
-        .collapsible summary { font-weight: bold; font-size: 1.2em; color: #0056b3; padding: 15px; cursor: pointer; display: block; }
-        .collapsible[open] summary { border-bottom: 1px solid #ddd; }
-        .form-section { padding: 20px; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; font-weight: bold; margin-bottom: 5px; }
-        .form-group input[type="text"], .form-group input[type="date"], .form-group textarea { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ccc; box-sizing: border-box; }
-        .form-group .checkbox-group { display: flex; align-items: center; gap: 10px; }
-        .form-group input[type="checkbox"] { width: auto; }
-        .form-submit-btn { background-color: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-size: 1em; }
-        .form-submit-btn:hover { background-color: #218838; }
-
-        .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; }
-        .gallery-item { border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-align: center; }
-        .gallery-item img { width: 100%; height: auto; display: block; background-color: #eee; }
-        .gallery-item .info { background-color: #f4f4f4; padding: 8px; margin: 0; font-size: 0.9em; color: #555; }
-        .gallery-item .actions { padding: 8px; background-color: #f4f4f4; border-top: 1px solid #ddd; }
-        .no-captures { font-style: italic; color: #777; text-align: center; padding: 20px; }
-        .back-link { display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; transition: background-color 0.3s; }
-        .back-link:hover { background-color: #0056b3; }
-        button, .button { padding: 8px 15px; font-size: 14px; cursor: pointer; color: white; border: none; border-radius: 4px; transition: background-color 0.3s; }
-        .delete-patient-btn { background-color: #dc3545; }
-        .delete-patient-btn:hover { background-color: #c82333; }
-        .delete-capture-btn { background-color: #6c757d; font-size: 12px; padding: 5px 10px; }
-        .delete-capture-btn:hover { background-color: #5a6268; }
-        .actions-container { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ccc; display: flex; justify-content: space-between; align-items: center; }
-        .delete-confirm-span { display: none; align-items: center; gap: 10px; }
-        .delete-confirm-span span { color: #333; font-weight: bold; }
-        .confirm-btn { background-color: #28a745; }
-        .cancel-btn { background-color: #ffc107; }
-    </style>
+    <title>Historial de {{ patient.nombre }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div class="header">
         <div class="user-info">
-            Iniciaste sesión como: <strong>{{ user.email }}</strong> (Rol: {{ user.role }})
+            Sesión iniciada como: <strong>{{ user.email }}</strong> (Rol: {{ user.role }})
         </div>
         <a href="{{ url_for('logout') }}" class="logout-btn">Cerrar Sesión</a>
     </div>
 
     <div class="container">
         <h1>Historial Clínico del Paciente</h1>
-        <div class="patient-info">
-            <h2>{{ patient.nombre }} {{ patient.apellido }}</h2>
-            <p><strong>Cédula:</strong> {{ patient.cedula }}</p>
-            <p><strong>Edad:</strong> {{ patient.edad or 'No especificada' }} años</p>
-            <p><strong>Teléfono:</strong> {{ patient.telefono or 'No especificado' }}</p>
-        </div>
-
-        <!-- INICIO: SECCIÓN DE HISTORIAL CLÍNICO CORREGIDA -->
-        <details class="collapsible" {% if patient.history %}open{% endif %}>
-            <summary>Historial Clínico Detallado</summary>
+        
+        <details class="collapsible" open>
+            <summary>Datos y Historial del Paciente</summary>
             <div class="form-section">
                 <form action="{{ url_for('update_history', firestore_patient_id=patient.firestore_id) }}" method="POST">
+                    <h2>Datos de Identificación</h2>
                     <div class="form-group">
-                        <label for="fecha_sintomas">3.1 Fecha de Inicio de los Síntomas</label>
-                        <!-- CORRECCIÓN: Se comprueba si 'history' y 'fecha_sintomas' existen -->
-                        <input type="date" id="fecha_sintomas" name="fecha_sintomas" value="{{ patient.history.fecha_sintomas if patient.history and patient.history.fecha_sintomas else '' }}">
+                        <label for="nombre">Nombre(s)</label>
+                        <input type="text" id="nombre" name="nombre" value="{{ patient.nombre or '' }}" required>
                     </div>
                     <div class="form-group">
-                        <label for="fecha_diagnostico">3.2 Fecha de Diagnóstico</label>
-                        <input type="date" id="fecha_diagnostico" name="fecha_diagnostico" value="{{ patient.history.fecha_diagnostico if patient.history and patient.history.fecha_diagnostico else '' }}">
+                        <label for="apellido">Apellido(s)</label>
+                        <input type="text" id="apellido" name="apellido" value="{{ patient.apellido or '' }}" required>
                     </div>
                     <div class="form-group">
-                        <label for="diagnostico_medico">3.3 Diagnóstico Médico</label>
+                        <label for="cedula">Cédula de Identidad</label>
+                        <input type="text" id="cedula" name="cedula" value="{{ patient.cedula or '' }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Correo Electrónico del Paciente</label>
+                        <input type="email" id="email" name="email" value="{{ patient.email or '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="edad">Edad</label>
+                        <input type="number" id="edad" name="edad" max="99" oninput="if(this.value.length > 2) this.value = this.value.slice(0, 2);" value="{{ patient.edad or '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="telefono">Teléfono</label>
+                        <input type="text" id="telefono" name="telefono" value="{{ patient.telefono or '' }}">
+                    </div>
+
+                    <h2 style="margin-top: 30px;">Historial Clínico Detallado</h2>
+                    <div class="form-group">
+                        <label for="fecha_sintomas">Fecha de Inicio de los Síntomas</label>
+                        <input type="date" id="fecha_sintomas" name="fecha_sintomas" value="{{ patient.history.fecha_sintomas if patient.history else '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="fecha_diagnostico">Fecha de Diagnóstico</label>
+                        <input type="date" id="fecha_diagnostico" name="fecha_diagnostico" value="{{ patient.history.fecha_diagnostico if patient.history else '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="diagnostico_medico">Diagnóstico Médico</label>
                         <textarea id="diagnostico_medico" name="diagnostico_medico" rows="3">{{ patient.history.diagnostico_medico if patient.history else '' }}</textarea>
                     </div>
                     <div class="form-group">
-                        <label>3.5 Tratamiento Farmacológico</label>
-                        <textarea name="tratamiento_farmacologico" rows="2" placeholder="Describa el tratamiento farmacológico...">{{ patient.history.tratamiento_farmacologico if patient.history else '' }}</textarea>
+                        <label>Tratamiento Farmacológico</label>
+                        <textarea name="tratamiento_farmacologico" rows="2" placeholder="Describa...">{{ patient.history.tratamiento_farmacologico if patient.history else '' }}</textarea>
                     </div>
                     <div class="form-group">
-                        <label>3.6 Tratamiento Conservador</label>
-                        <textarea name="tratamiento_conservador" rows="2" placeholder="Describa el tratamiento conservador (drenaje, vendaje, etc.)...">{{ patient.history.tratamiento_conservador if patient.history else '' }}</textarea>
+                        <label>Tratamiento Conservador</label>
+                        <textarea name="tratamiento_conservador" rows="2" placeholder="Describa...">{{ patient.history.tratamiento_conservador if patient.history else '' }}</textarea>
                     </div>
                      <div class="form-group">
-                        <label>3.7 Tratamiento Quirúrgico</label>
-                        <textarea name="tratamiento_quirurgico" rows="2" placeholder="Describa el tratamiento quirúrgico...">{{ patient.history.tratamiento_quirurgico if patient.history else '' }}</textarea>
+                        <label>Tratamiento Quirúrgico</label>
+                        <textarea name="tratamiento_quirurgico" rows="2" placeholder="Describa...">{{ patient.history.tratamiento_quirurgico if patient.history else '' }}</textarea>
                     </div>
-                    <button type="submit" class="form-submit-btn">Guardar Historial</button>
+                    <button type="submit" class="button form-submit-btn">Actualizar Datos</button>
                 </form>
             </div>
         </details>
-        <!-- FIN: SECCIÓN DE HISTORIAL CLÍNICO CORREGIDA -->
 
         <h2>Galería de Capturas</h2>
         <hr>
@@ -110,37 +86,83 @@
                     <a href="{{ capture.cloud_url }}" target="_blank">
                         <img src="{{ capture.cloud_url }}" alt="Captura para {{ patient.nombre }}">
                     </a>
-                    <div class="info">
-                        <strong>Fecha:</strong> {{ capture.timestamp.strftime('%Y-%m-%d %H:%M:%S') if capture.timestamp else 'N/A' }}
-                    </div>
-                    {% if user.role == 'doctor' %}
                     <div class="actions">
                         <form action="{{ url_for('delete_capture', firestore_capture_id=capture.firestore_id) }}" method="POST">
-                            <button type="button" class="button delete-capture-btn delete-initial-btn">Eliminar</button>
+                            <button type="button" class="button delete-initial-btn">Eliminar</button>
                             <span class="delete-confirm-span">
                                 <span>¿Seguro?</span>
                                 <button type="submit" class="button confirm-btn">Sí</button>
-                                <button type="button" class="button cancel-btn delete-cancel-btn">No</button>
+                                <button type="button" class="button cancel-btn">No</button>
                             </span>
                         </form>
                     </div>
-                    {% endif %}
                 </div>
                 {% endfor %}
             </div>
         {% else %}
-            <p class="no-captures">No hay imágenes capturadas para este paciente todavía.</p>
+            <p style="text-align: center; font-style: italic; color: #777;">No hay imágenes capturadas para este paciente todavía.</p>
+        {% endif %}
+
+        {% if user.role == 'doctor' and captures %}
+        <details class="collapsible" open>
+            <summary>Análisis y Generación de Informe</summary>
+            <div class="form-section report-form">
+                <form action="{{ url_for('save_analysis', firestore_patient_id=patient.firestore_id) }}" method="POST">
+                    <fieldset>
+                        <legend>1. Capturas a Incluir</legend>
+                        <div class="checkbox-grid">
+                            {% for capture in captures %}
+                            <div class="checkbox-item">
+                                <input type="checkbox" name="selected_captures" value="{{ capture.firestore_id }}" id="capture_{{ loop.index }}">
+                                <label for="capture_{{ loop.index }}">
+                                    Captura del {{ capture.timestamp.strftime('%d-%m-%Y %H:%M') }}
+                                    <strong>({{ capture.study_area or 'General' }})</strong>
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </fieldset>
+                    <fieldset>
+                        <legend>2. Extremidad Evaluada</legend>
+                        <div class="checkbox-grid">
+                            <div class="checkbox-item"><input type="checkbox" name="extremidad" value="Brazo Derecho"> Brazo Derecho</div>
+                            <div class="checkbox-item"><input type="checkbox" name="extremidad" value="Brazo Izquierdo"> Brazo Izquierdo</div>
+                            <div class="checkbox-item"><input type="checkbox" name="extremidad" value="Pierna Derecha"> Pierna Derecha</div>
+                            <div class="checkbox-item"><input type="checkbox" name="extremidad" value="Pierna Izquierda"> Pierna Izquierda</div>
+                        </div>
+                    </fieldset>
+                    <fieldset>
+                        <legend>3. Hallazgos Observados</legend>
+                        <div class="checkbox-grid">
+                            <div class="checkbox-item"><input type="checkbox" name="hallazgos" value="Flujo Lineal (Normal)"> Flujo Lineal (Normal)</div>
+                            <div class="checkbox-item"><input type="checkbox" name="hallazgos" value="Flujo Lento"> Flujo Lento</div>
+                            <div class="checkbox-item"><input type="checkbox" name="hallazgos" value="Patrón Punteado (Reflujo Dérmico)"> Patrón Punteado (Reflujo Dérmico)</div>
+                            <div class="checkbox-item"><input type="checkbox" name="hallazgos" value="Vasos Colaterales"> Vasos Colaterales</div>
+                            <div class="checkbox-item"><input type="checkbox" name="hallazgos" value="Obstrucción"> Obstrucción</div>
+                            <div class="checkbox-item"><input type="checkbox" name="hallazgos" value="Ausencia de Captación"> Ausencia de Captación</div>
+                        </div>
+                    </fieldset>
+                    <fieldset>
+                        <legend>4. Conclusiones y Recomendaciones</legend>
+                        <div class="form-group">
+                            <textarea name="conclusiones" rows="4" placeholder="Escriba aquí sus conclusiones..."></textarea>
+                        </div>
+                    </fieldset>
+                    <button type="submit" class="button form-submit-btn">Guardar y Generar Informe PDF</button>
+                </form>
+            </div>
+        </details>
         {% endif %}
 
         <div class="actions-container">
-            <a href="{{ url_for('index') }}" class="back-link">← Volver al Panel</a>
+            <a href="{{ url_for('patient_list') }}" class="button back-link">← Volver a la Lista</a>
             {% if user.role == 'doctor' %}
             <form action="{{ url_for('delete_patient', firestore_patient_id=patient.firestore_id) }}" method="POST">
                 <button type="button" class="button delete-patient-btn delete-initial-btn">Eliminar Paciente</button>
                 <span class="delete-confirm-span">
                     <span>¿Seguro?</span>
                     <button type="submit" class="button confirm-btn">Sí, eliminar</button>
-                    <button type="button" class="button cancel-btn delete-cancel-btn">No</button>
+                    <button type="button" class="button cancel-btn">No</button>
                 </span>
             </form>
             {% endif %}
@@ -152,7 +174,7 @@
             document.querySelectorAll('form[action*="delete"]').forEach(form => {
                 const initialBtn = form.querySelector('.delete-initial-btn');
                 const confirmSpan = form.querySelector('.delete-confirm-span');
-                const cancelBtn = form.querySelector('.delete-cancel-btn');
+                const cancelBtn = form.querySelector('.cancel-btn');
 
                 if (initialBtn && confirmSpan && cancelBtn) {
                     initialBtn.addEventListener('click', () => {

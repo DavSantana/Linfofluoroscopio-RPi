@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estudio - {{ patient.nombre }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="header">
+        <div class="user-info">
+            Sesión iniciada como: <strong>{{ user.email }}</strong> (Rol: {{ user.role }})
+        </div>
+        <a href="{{ url_for('logout') }}" class="logout-btn">Cerrar Sesión</a>
+    </div>
+
+    <div class="container" style="text-align: center;">
+        <h1>Estudio para: <strong>{{ patient.nombre }} {{ patient.apellido }}</strong></h1>
+        <h2>Zona Evaluada: <strong>{{ study_area }}</strong></h2>
+        
+        <img id="videoFeed" src="{{ url_for('video_feed') }}" alt="Transmisión en vivo" style="border: 2px solid #ddd; border-radius: 8px; max-width: 100%; margin-top: 20px;">
+        
+        <div>
+            <button id="captureBtn" class="button" style="background-color: #dc3545; margin-top: 20px;">Capturar Imagen</button>
+        </div>
+        <p id="statusMessage" style="margin-top: 15px; font-style: italic; color: green; height: 20px; font-weight: bold;"></p>
+        
+        <a href="{{ url_for('patient_list') }}" class="button back-link" style="display: block; margin-top: 20px; width: fit-content; margin-left: auto; margin-right: auto;">← Volver a la Lista de Pacientes</a>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const captureBtn = document.getElementById('captureBtn');
+            const statusMessage = document.getElementById('statusMessage');
+            const patientId = "{{ patient.firestore_id }}";
+            const studyArea = "{{ study_area }}";
+
+            captureBtn.addEventListener('click', function() {
+                statusMessage.textContent = 'Capturando...';
+                fetch(`/capture?firestore_patient_id=${patientId}&study_area=${encodeURIComponent(studyArea)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        statusMessage.textContent = data.message;
+                        setTimeout(() => { statusMessage.textContent = ''; }, 3000);
+                    })
+                    .catch(error => {
+                        statusMessage.textContent = 'Error en la captura.';
+                        console.error('Error:', error);
+                    });
+            });
+        });
+    </script>
+</body>
+</html>

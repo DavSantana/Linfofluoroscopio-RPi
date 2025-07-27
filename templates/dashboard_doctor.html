@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel del Doctor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .dashboard-container { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 50px 20px; }
+        .team-info { background-color: #e9ecef; padding: 10px 20px; border-radius: 8px; margin-top: 20px; font-size: 0.9em; color: #333; border: 1px solid #dee2e6; }
+        .team-info strong { color: #0056b3; }
+        .action-buttons { display: flex; gap: 20px; margin-top: 30px; }
+        .action-btn { padding: 20px 40px; font-size: 1.2em; text-decoration: none; color: white; border-radius: 8px; transition: transform 0.2s; }
+        .btn-register { background-color: #28a745; }
+        .btn-search { background-color: #17a2b8; }
+        .action-btn:hover { transform: scale(1.05); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="user-info">
+            Sesión iniciada como: <strong>{{ user.email }}</strong> (Rol: {{ user.role }})
+        </div>
+        <a href="{{ url_for('logout') }}" class="logout-btn">Cerrar Sesión</a>
+    </div>
+
+    <div class="dashboard-container">
+        <h1>Panel de Control del Doctor</h1>
+        <p>Seleccione una acción para continuar.</p>
+        <div class="action-buttons">
+            <a href="{{ url_for('register_patient') }}" class="action-btn btn-register">Registrar Paciente Nuevo</a>
+            <a href="{{ url_for('patient_list') }}" class="action-btn btn-search">Buscar Paciente para Estudio</a>
+        </div>
+        <div class="team-info">
+            ID de tu Equipo (para compartir): <strong>{{ user.team_id }}</strong>
+        </div>
+    </div>
+</body>
+</html>
