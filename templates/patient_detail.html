@@ -20,59 +20,66 @@
         <details class="collapsible" open>
             <summary>Datos y Historial del Paciente</summary>
             <div class="form-section">
-                <form action="{{ url_for('update_history', firestore_patient_id=patient.firestore_id) }}" method="POST">
-                    <h2>Datos de Identificación</h2>
-                    <div class="form-group">
-                        <label for="nombre">Nombre(s)</label>
-                        <input type="text" id="nombre" name="nombre" value="{{ patient.nombre or '' }}" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="apellido">Apellido(s)</label>
-                        <input type="text" id="apellido" name="apellido" value="{{ patient.apellido or '' }}" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="cedula">Cédula de Identidad</label>
-                        <input type="text" id="cedula" name="cedula" value="{{ patient.cedula or '' }}" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="email">Correo Electrónico del Paciente</label>
-                        <input type="email" id="email" name="email" value="{{ patient.email or '' }}">
-                    </div>
-                    <div class="form-group">
-                        <label for="edad">Edad</label>
-                        <input type="number" id="edad" name="edad" max="99" oninput="if(this.value.length > 2) this.value = this.value.slice(0, 2);" value="{{ patient.edad or '' }}">
-                    </div>
-                    <div class="form-group">
-                        <label for="telefono">Teléfono</label>
-                        <input type="text" id="telefono" name="telefono" value="{{ patient.telefono or '' }}">
-                    </div>
+                <form id="update-form" action="{{ url_for('update_history', firestore_patient_id=patient.firestore_id) }}" method="POST">
+                    <fieldset id="patient-fieldset" disabled>
+                        <h2>Datos de Identificación</h2>
+                        <div class="form-group">
+                            <label for="nombre">Nombre(s)</label>
+                            <input type="text" id="nombre" name="nombre" value="{{ patient.nombre or '' }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="apellido">Apellido(s)</label>
+                            <input type="text" id="apellido" name="apellido" value="{{ patient.apellido or '' }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="cedula">Cédula de Identidad</label>
+                            <input type="text" id="cedula" name="cedula" value="{{ patient.cedula or '' }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Correo Electrónico del Paciente</label>
+                            <input type="email" id="email" name="email" value="{{ patient.email or '' }}">
+                        </div>
+                        <div class="form-group">
+                            <label for="edad">Edad</label>
+                            <input type="number" id="edad" name="edad" max="99" oninput="if(this.value.length > 2) this.value = this.value.slice(0, 2);" value="{{ patient.edad or '' }}">
+                        </div>
+                        <div class="form-group">
+                            <label for="telefono">Teléfono</label>
+                            <input type="text" id="telefono" name="telefono" value="{{ patient.telefono or '' }}">
+                        </div>
 
-                    <h2 style="margin-top: 30px;">Historial Clínico Detallado</h2>
-                    <div class="form-group">
-                        <label for="fecha_sintomas">Fecha de Inicio de los Síntomas</label>
-                        <input type="date" id="fecha_sintomas" name="fecha_sintomas" value="{{ patient.history.fecha_sintomas if patient.history else '' }}">
+                        <h2 style="margin-top: 30px;">Historial Clínico Detallado</h2>
+                        <div class="form-group">
+                            <label for="fecha_sintomas">Fecha de Inicio de los Síntomas</label>
+                            <input type="date" id="fecha_sintomas" name="fecha_sintomas" value="{{ patient.history.fecha_sintomas if patient.history else '' }}">
+                        </div>
+                        <div class="form-group">
+                            <label for="fecha_diagnostico">Fecha de Diagnóstico</label>
+                            <input type="date" id="fecha_diagnostico" name="fecha_diagnostico" value="{{ patient.history.fecha_diagnostico if patient.history else '' }}">
+                        </div>
+                        <div class="form-group">
+                            <label for="diagnostico_medico">Diagnóstico Médico</label>
+                            <textarea id="diagnostico_medico" name="diagnostico_medico" rows="3">{{ patient.history.diagnostico_medico if patient.history else '' }}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Tratamiento Farmacológico</label>
+                            <textarea name="tratamiento_farmacologico" rows="2" placeholder="Describa...">{{ patient.history.tratamiento_farmacologico if patient.history else '' }}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Tratamiento Conservador</label>
+                            <textarea name="tratamiento_conservador" rows="2" placeholder="Describa...">{{ patient.history.tratamiento_conservador if patient.history else '' }}</textarea>
+                        </div>
+                         <div class="form-group">
+                            <label>Tratamiento Quirúrgico</label>
+                            <textarea name="tratamiento_quirurgico" rows="2" placeholder="Describa...">{{ patient.history.tratamiento_quirurgico if patient.history else '' }}</textarea>
+                        </div>
+                    </fieldset>
+                    
+                    <div id="form-actions" style="margin-top: 20px;">
+                        <button type="button" id="edit-btn" class="button btn-edit">Modificar Datos</button>
+                        <button type="submit" id="save-btn" class="button form-submit-btn" style="display: none;">Guardar Cambios</button>
+                        <button type="button" id="cancel-btn" class="button" style="display: none; background-color: #6c757d;">Cancelar</button>
                     </div>
-                    <div class="form-group">
-                        <label for="fecha_diagnostico">Fecha de Diagnóstico</label>
-                        <input type="date" id="fecha_diagnostico" name="fecha_diagnostico" value="{{ patient.history.fecha_diagnostico if patient.history else '' }}">
-                    </div>
-                    <div class="form-group">
-                        <label for="diagnostico_medico">Diagnóstico Médico</label>
-                        <textarea id="diagnostico_medico" name="diagnostico_medico" rows="3">{{ patient.history.diagnostico_medico if patient.history else '' }}</textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>Tratamiento Farmacológico</label>
-                        <textarea name="tratamiento_farmacologico" rows="2" placeholder="Describa...">{{ patient.history.tratamiento_farmacologico if patient.history else '' }}</textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>Tratamiento Conservador</label>
-                        <textarea name="tratamiento_conservador" rows="2" placeholder="Describa...">{{ patient.history.tratamiento_conservador if patient.history else '' }}</textarea>
-                    </div>
-                     <div class="form-group">
-                        <label>Tratamiento Quirúrgico</label>
-                        <textarea name="tratamiento_quirurgico" rows="2" placeholder="Describa...">{{ patient.history.tratamiento_quirurgico if patient.history else '' }}</textarea>
-                    </div>
-                    <button type="submit" class="button form-submit-btn">Actualizar Datos</button>
                 </form>
             </div>
         </details>
@@ -171,6 +178,7 @@
     
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // Lógica para confirmación de borrado
             document.querySelectorAll('form[action*="delete"]').forEach(form => {
                 const initialBtn = form.querySelector('.delete-initial-btn');
                 const confirmSpan = form.querySelector('.delete-confirm-span');
@@ -188,6 +196,32 @@
                     });
                 }
             });
+
+            // Lógica para el modo de edición del formulario de historial
+            const fieldset = document.getElementById('patient-fieldset');
+            const editBtn = document.getElementById('edit-btn');
+            const saveBtn = document.getElementById('save-btn');
+            const cancelBtn = document.getElementById('cancel-btn');
+
+            if (editBtn) {
+                editBtn.addEventListener('click', () => {
+                    fieldset.disabled = false;
+                    editBtn.style.display = 'none';
+                    saveBtn.style.display = 'inline-block';
+                    cancelBtn.style.display = 'inline-block';
+                });
+            }
+
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', () => {
+                    fieldset.disabled = true;
+                    editBtn.style.display = 'inline-block';
+                    saveBtn.style.display = 'none';
+                    cancelBtn.style.display = 'none';
+                    // Opcional: Recargar la página para descartar cambios no guardados
+                    window.location.reload();
+                });
+            }
         });
     </script>
 </body>

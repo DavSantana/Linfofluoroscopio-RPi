@@ -59,7 +59,7 @@ class PDF(FPDF):
         available_width = self.w - self.l_margin - self.r_margin - 40
         self.multi_cell(available_width, 10, data, border=1, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
-# --- BASE DE DATOS LOCAL (SQLite) ---
+# --- BASE DE DATOS Y FUNCIONES AUXILIARES ---
 def get_db_connection():
     conn = sqlite3.connect('linfoscopio.db')
     conn.row_factory = sqlite3.Row
@@ -86,7 +86,6 @@ def init_db():
 
 init_db()
 
-# --- FUNCIONES AUXILIARES DE FIREBASE ---
 def sync_to_firestore(collection_name, data, document_id=None):
     if not db_firestore: return None
     try:
@@ -137,7 +136,7 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# --- RUTAS DE AUTENTICACIÓN Y REGISTRO DE USUARIOS ---
+# --- RUTAS DE AUTENTICACIÓN ---
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -319,6 +318,7 @@ def patient_detail(firestore_patient_id):
         return "Paciente no encontrado", 404
     return render_template('patient_detail.html', patient=patient_data, captures=captures_list, user=session.get('user'))
 
+# --- RUTA MODIFICADA PARA ACTUALIZAR DATOS Y HISTORIAL ---
 @app.route('/update_history/<string:firestore_patient_id>', methods=['POST'])
 @login_required
 def update_history(firestore_patient_id):
