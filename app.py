@@ -1,15 +1,16 @@
-# app.py (Versión Final con Generación de PDF y Actualización de Datos)
-
+# app.py (Versión Final con Generación de PDF y Ruta de Anotaciones)
 import os
 import sqlite3
 import io
 import requests
 from datetime import datetime
+import json
 from flask import Flask, Response, render_template, jsonify, request, redirect, url_for, session, send_file
 from functools import wraps
 from camera_pi import Camera
 from fpdf import FPDF
 from fpdf.enums import XPos, YPos
+import base64
 
 # --- IMPORTS DE FIREBASE ---
 import firebase_admin
@@ -25,7 +26,7 @@ camera = Camera()
 try:
     cred = credentials.Certificate("firebase_credentials.json")
     firebase_admin.initialize_app(cred, {
-        'storageBucket': 'linfofluoroscopio-tesis.firebasestorage.app' 
+        'storageBucket': 'linfofluoroscopio-tesis.firebasestorage.app'
     })
     db_firestore = firestore.client()
     bucket = storage.bucket()
@@ -53,11 +54,19 @@ class PDF(FPDF):
         self.ln(4)
 
     def chapter_body(self, name, data):
+        y_before = self.get_y()
+        # Dibuja la celda del título (izquierda)
         self.set_font('Helvetica', 'B', 11)
-        self.cell(40, 10, name, border=1)
+        self.multi_cell(40, 10, name, border=1, new_x="RIGHT", new_y="TOP")
+
+        # Regresa a la posición Y inicial y mueve el cursor X
+        self.set_y(y_before)
+        self.set_x(self.l_margin + 40)
+
+        # Dibuja la celda de datos (derecha)
         self.set_font('Helvetica', '', 11)
         available_width = self.w - self.l_margin - self.r_margin - 40
-        self.multi_cell(available_width, 10, data, border=1, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        self.multi_cell(available_width, 10, data, border=1, new_x="LMARGIN", new_y="NEXT")
 
 # --- BASE DE DATOS Y FUNCIONES AUXILIARES ---
 def get_db_connection():
@@ -311,14 +320,13 @@ def patient_detail(firestore_patient_id):
                     capture_data['firestore_id'] = capture.id
                     captures_list.append(capture_data)
             else:
-                 return "Acceso denegado o paciente no encontrado.", 404
+                return "Acceso denegado o paciente no encontrado.", 404
         except Exception as e:
             print(f"Error al leer detalles de Firestore: {e}")
     if not patient_data:
         return "Paciente no encontrado", 404
     return render_template('patient_detail.html', patient=patient_data, captures=captures_list, user=session.get('user'))
 
-# --- RUTA MODIFICADA PARA ACTUALIZAR DATOS Y HISTORIAL ---
 @app.route('/update_history/<string:firestore_patient_id>', methods=['POST'])
 @login_required
 def update_history(firestore_patient_id):
@@ -326,7 +334,6 @@ def update_history(firestore_patient_id):
     if session['user']['role'] not in allowed_roles:
         return "Acceso denegado.", 403
     try:
-        # Datos básicos del paciente
         patient_updates = {
             'nombre': request.form.get('nombre'),
             'apellido': request.form.get('apellido'),
@@ -336,7 +343,6 @@ def update_history(firestore_patient_id):
             'telefono': request.form.get('telefono'),
         }
         
-        # Datos del historial clínico
         history_updates = {
             'fecha_sintomas': request.form.get('fecha_sintomas'),
             'fecha_diagnostico': request.form.get('fecha_diagnostico'),
@@ -346,7 +352,6 @@ def update_history(firestore_patient_id):
             'tratamiento_quirurgico': request.form.get('tratamiento_quirurgico'),
         }
         
-        # Combinar ambas actualizaciones
         patient_updates['history'] = history_updates
         
         patient_ref = db_firestore.collection('patients').document(firestore_patient_id)
@@ -385,6 +390,7 @@ def save_analysis(firestore_patient_id):
         print(f"Error al guardar el análisis: {e}")
         return "Ocurrió un error al guardar el análisis.", 500
 
+# Reemplaza esta función completa en tu app.py
 @app.route('/generate_report/<string:report_id>')
 @login_required
 def generate_report(report_id):
@@ -405,13 +411,25 @@ def generate_report(report_id):
         pdf.chapter_title('Datos del Paciente')
         pdf.chapter_body('Nombre:', f"{patient_data.get('nombre', '')} {patient_data.get('apellido', '')}")
         pdf.chapter_body('Cédula:', patient_data.get('cedula', 'N/A'))
-        pdf.chapter_body('Fecha del Informe:', report_data.get('analysis_date').strftime('%d-%m-%Y'))
+        # CORRECCIÓN: Se usa la fecha de la anotación si existe
+        fecha_informe = report_data.get('analysis_date')
+        if fecha_informe:
+            pdf.chapter_body('Fecha del Informe:', fecha_informe.strftime('%d-%m-%Y'))
         
         pdf.ln(10)
+        
+        # --- CORRECCIÓN PRINCIPAL AQUÍ ---
+        # Preparamos los datos y nos aseguramos de que no estén vacíos
+        extremidad_str = ', '.join(report_data.get('extremidad', []))
+        hallazgos_str = ', '.join(report_data.get('hallazgos', []))
+        # Usamos 'Observaciones' como en tu imagen, en lugar de 'Conclusiones'
+        observaciones_str = report_data.get('conclusiones', '')
+
         pdf.chapter_title('Resultados del Estudio')
-        pdf.chapter_body('Extremidad Evaluada:', ', '.join(report_data.get('extremidad', [])))
-        pdf.chapter_body('Hallazgos Observados:', ', '.join(report_data.get('hallazgos', [])))
-        pdf.chapter_body('Conclusiones:', report_data.get('conclusiones', ''))
+        # Si el string está vacío, pasamos un espacio para mantener la altura de la celda
+        pdf.chapter_body('Extremidad:', extremidad_str if extremidad_str else ' ')
+        pdf.chapter_body('Hallazgos:', hallazgos_str if hallazgos_str else ' ')
+        pdf.chapter_body('Observaciones:', observaciones_str if observaciones_str else ' ')
         
         selected_captures_ids = report_data.get('selected_captures', [])
         if selected_captures_ids:
@@ -421,16 +439,20 @@ def generate_report(report_id):
             for capture_id in selected_captures_ids:
                 capture_ref = db_firestore.collection('captures').document(capture_id)
                 capture_data = capture_ref.get().to_dict()
-                if capture_data and 'cloud_url' in capture_data:
-                    response = requests.get(capture_data['cloud_url'])
-                    if response.status_code == 200:
-                        img_stream = io.BytesIO(response.content)
-                        pdf.image(img_stream, w=pdf.w - 20)
-                        pdf.set_font('Helvetica', 'I', 9)
-                        pdf.cell(0, 10, f"Captura de {capture_data.get('study_area', '')} - {capture_data.get('timestamp').strftime('%d-%m-%Y %H:%M')}", align='C', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-                        pdf.ln(5)
+                if capture_data:
+                    # Usamos la imagen anotada si existe, si no, la original
+                    image_url_to_use = capture_data.get('annotated_url', capture_data.get('cloud_url'))
+                    if image_url_to_use:
+                        response = requests.get(image_url_to_use)
+                        if response.status_code == 200:
+                            img_stream = io.BytesIO(response.content)
+                            pdf.image(img_stream, w=pdf.w - 20)
+                            pdf.set_font('Helvetica', 'I', 9)
+                            timestamp = capture_data.get('timestamp')
+                            if timestamp:
+                                pdf.cell(0, 10, f"Captura de {capture_data.get('study_area', '')} - {timestamp.strftime('%d-%m-%Y %H:%M')}", align='C', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+                            pdf.ln(5)
 
-        # --- CORRECCIÓN FINAL ---
         pdf_output = pdf.output()
         return send_file(
             io.BytesIO(pdf_output),
@@ -502,6 +524,11 @@ def delete_patient(firestore_patient_id):
             capture_data = capture.to_dict()
             if 'storage_path' in capture_data:
                 delete_from_storage(capture_data['storage_path'])
+            # Also delete annotated image if it exists
+            if 'annotated_url' in capture_data:
+                # Extract blob name from URL for deletion
+                blob_name_annotated = '/'.join(capture_data['annotated_url'].split('?')[0].split('/')[-5:])
+                delete_from_storage(blob_name_annotated)
             capture.reference.delete()
         delete_from_firestore('patients', firestore_patient_id)
         conn = get_db_connection()
@@ -527,6 +554,11 @@ def delete_capture(firestore_capture_id):
         patient_id_to_redirect = capture_data.get('patient_firestore_id')
         if 'storage_path' in capture_data:
             delete_from_storage(capture_data['storage_path'])
+        # Also delete annotated image if it exists
+        if 'annotated_url' in capture_data:
+            blob_name_annotated = '/'.join(capture_data['annotated_url'].split('?')[0].split('/')[-5:])
+            delete_from_storage(blob_name_annotated)
+            
         delete_from_firestore('captures', firestore_capture_id)
         conn = get_db_connection()
         conn.execute('DELETE FROM captures WHERE firestore_id = ?', (firestore_capture_id,))
@@ -546,6 +578,59 @@ def video_feed():
                    b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
     return Response(gen(camera), mimetype='multipart/x-mixed-replace; boundary=frame')
 
+# --- RUTA NUEVA PARA GUARDAR ANOTACIONES ---
+# Reemplaza esta función completa en tu app.py
+@app.route('/save_annotation/<string:capture_id>', methods=['POST'])
+@login_required
+def save_annotation(capture_id):
+    if session['user']['role'] != 'doctor':
+        return jsonify(status="error", message="Acceso denegado."), 403
+
+    try:
+        data = request.json
+        image_data_url = data.get('imageData')
+        annotation_data = data.get('annotationData')
+
+        if not image_data_url:
+            return jsonify(status="error", message="No se proporcionaron datos de imagen."), 400
+
+        team_id = session['user']['team_id']
+        capture_ref = db_firestore.collection('captures').document(capture_id)
+        capture_doc = capture_ref.get()
+
+        if not capture_doc.exists or capture_doc.to_dict().get('team_id') != team_id:
+            return jsonify(status="error", message="Captura no encontrada o sin autorización."), 404
+
+        patient_id = capture_doc.to_dict().get('patient_firestore_id')
+
+        header, encoded = image_data_url.split(",", 1)
+        decoded_image = base64.b64decode(encoded)
+
+        timestamp_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        destination_blob_name = f"pacientes/{patient_id}/anotaciones/annotated_{capture_id}_{timestamp_str}.png"
+
+        blob = bucket.blob(destination_blob_name)
+        blob.upload_from_string(decoded_image, content_type='image/png')
+        blob.make_public()
+        new_annotated_url = blob.public_url
+
+        update_data = {
+            'annotated_url': new_annotated_url,
+            'last_annotated_at': firestore.SERVER_TIMESTAMP
+        }
+        if annotation_data:
+            # CORRECCIÓN: Convertimos el objeto a un string de texto JSON antes de guardarlo
+            update_data['annotation_data'] = json.dumps(annotation_data)
+
+        capture_ref.update(update_data)
+
+        return jsonify(status="success", message="Anotación guardada con éxito.")
+
+    except Exception as e:
+        print(f"Error al guardar la anotación: {e}")
+        return jsonify(status="error", message=f"Ocurrió un error en el servidor: {e}"), 500
+
 if __name__ == '__main__':
     print("Iniciando servidor Flask...")
     app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False, threaded=True)
+    
