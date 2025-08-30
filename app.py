@@ -468,6 +468,8 @@ def generate_report(report_id):
 @app.route('/capture')
 @login_required
 def capture():
+    if not camera_available:
+        return jsonify(message="Error: La función de captura no está disponible en el servidor."), 400
     if session['user']['role'] != 'doctor':
         return jsonify(message="Error: Solo los doctores pueden realizar capturas."), 403
         
@@ -571,6 +573,8 @@ def delete_capture(firestore_capture_id):
 @app.route('/video_feed')
 @login_required
 def video_feed():
+    if not camera_available:
+        return "Cámara no disponible en este servidor.", 503
     def gen(camera_instance):
         while True:
             frame = camera_instance.get_frame()
