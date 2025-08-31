@@ -7,7 +7,6 @@ from datetime import datetime
 import json
 from flask import Flask, Response, render_template, jsonify, request, redirect, url_for, session, send_file
 from functools import wraps
-from camera_pi import Camera
 from fpdf import FPDF
 from fpdf.enums import XPos, YPos
 import base64
@@ -17,10 +16,20 @@ import firebase_admin
 from firebase_admin import credentials, firestore, storage, auth
 from google.cloud.firestore_v1.base_query import FieldFilter
 
+# --- MODIFICACION PARA COMPATIBILIDAD CON VPS ---
+try:
+    from camera_pi import Camera
+    camera = Camera()
+    camera_available = True
+    print("Cámara encontrada y activada.")
+except (ImportError, RuntimeError, ModuleNotFoundError):
+    camera = None
+    camera_available = False
+    print("Cámara NO encontrada. Ejecutando en modo servidor/sin cámara.")
+
 # --- INICIALIZACIÓN CENTRAL ---
 app = Flask(__name__)
 app.secret_key = 'clave-secreta-para-el-linfofluoroscopio'
-camera = Camera()
 
 # --- INICIALIZACIÓN DE FIREBASE ---
 try:
