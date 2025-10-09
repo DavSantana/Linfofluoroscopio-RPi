@@ -18,8 +18,7 @@
         <h1>Estudio para: <strong>{{ patient.nombre }} {{ patient.apellido }}</strong></h1>
         <h2>Zona Evaluada: <strong>{{ study_area }}</strong></h2>
         
-        <img id="videoFeed" src="{{ url_for('video_feed') }}" alt="Transmisión en vivo" style="border: 2px solid #ddd; border-radius: 8px; max-width: 100%; margin-top: 20px;">
-        
+        <img id="videoFeed" src="/stream/video_feed" alt="Transmisión en vivo" style="border: 2px solid #ddd; border-radius: 8px; max-width: 100%; margin-top: 20px;">
         <div>
             <button id="captureBtn" class="button" style="background-color: #dc3545; margin-top: 20px;">Capturar Imagen</button>
         </div>
@@ -37,14 +36,18 @@
 
             captureBtn.addEventListener('click', function() {
                 statusMessage.textContent = 'Capturando...';
-                fetch(`/capture?firestore_patient_id=${patientId}&study_area=${encodeURIComponent(studyArea)}`)
+
+                // ===================== INICIO DE LA MODIFICACIÓN 2 =====================
+                // La petición 'fetch' también usa la nueva ruta relativa del proxy
+                fetch(`/stream/capture?firestore_patient_id=${patientId}&study_area=${encodeURIComponent(studyArea)}`)
+                // ====================== FIN DE LA MODIFICACIÓN 2 =======================
                     .then(response => response.json())
                     .then(data => {
                         statusMessage.textContent = data.message;
                         setTimeout(() => { statusMessage.textContent = ''; }, 3000);
                     })
                     .catch(error => {
-                        statusMessage.textContent = 'Error en la captura.';
+                        statusMessage.textContent = 'Error en la captura. Verifique que la Pi esté encendida y el túnel activo.';
                         console.error('Error:', error);
                     });
             });

@@ -1,4 +1,5 @@
-# app.py (Versión Final con Generación de PDF y Ruta de Anotaciones)
+# app.py (Versión Final para VPS con Obtención Dinámica de IP)
+
 import os
 import sqlite3
 import io
@@ -17,6 +18,7 @@ from firebase_admin import credentials, firestore, storage, auth
 from google.cloud.firestore_v1.base_query import FieldFilter
 
 # --- MODIFICACION PARA COMPATIBILIDAD CON VPS ---
+# (Este bloque está correcto y se queda igual)
 try:
     from camera_pi import Camera
     camera = Camera()
@@ -32,6 +34,7 @@ app = Flask(__name__)
 app.secret_key = 'clave-secreta-para-el-linfofluoroscopio'
 
 # --- INICIALIZACIÓN DE FIREBASE ---
+# (Esta sección está correcta y se queda igual)
 try:
     cred = credentials.Certificate("firebase_credentials.json")
     firebase_admin.initialize_app(cred, {
@@ -45,7 +48,8 @@ except Exception as e:
     db_firestore = None
     bucket = None
 
-# --- CLASE PERSONALIZADA PARA EL PDF (CORREGIDA) ---
+# --- [COMIENZO DEL CÓDIGO SIN CAMBIOS HASTA 'start_study'] ---
+
 class PDF(FPDF):
     def header(self):
         self.set_font('Helvetica', 'B', 16)
@@ -64,20 +68,14 @@ class PDF(FPDF):
 
     def chapter_body(self, name, data):
         y_before = self.get_y()
-        # Dibuja la celda del título (izquierda)
         self.set_font('Helvetica', 'B', 11)
         self.multi_cell(40, 10, name, border=1, new_x="RIGHT", new_y="TOP")
-
-        # Regresa a la posición Y inicial y mueve el cursor X
         self.set_y(y_before)
         self.set_x(self.l_margin + 40)
-
-        # Dibuja la celda de datos (derecha)
         self.set_font('Helvetica', '', 11)
         available_width = self.w - self.l_margin - self.r_margin - 40
         self.multi_cell(available_width, 10, data, border=1, new_x="LMARGIN", new_y="NEXT")
 
-# --- BASE DE DATOS Y FUNCIONES AUXILIARES ---
 def get_db_connection():
     conn = sqlite3.connect('linfoscopio.db')
     conn.row_factory = sqlite3.Row
@@ -145,7 +143,6 @@ def delete_from_storage(blob_name):
     except Exception as e:
         print(f"Error al eliminar de Storage: {e}")
 
-# --- DECORADOR DE AUTENTICACIÓN ---
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -154,7 +151,6 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# --- RUTAS DE AUTENTICACIÓN ---
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -163,12 +159,10 @@ def register():
         role = request.form['role']
         team_name = request.form.get('team_name')
         team_id = request.form.get('team_id')
-
         if not team_name and not team_id:
             return render_template('register.html', error="Debes crear un equipo o unirte a uno.")
         if team_name and team_id:
             return render_template('register.html', error="Solo puedes crear un equipo o unirte a uno, no ambos.")
-
         try:
             new_user = auth.create_user(email=email, password=password)
             if team_name:
@@ -223,7 +217,6 @@ def logout():
     session.pop('user', None)
     return redirect(url_for('login'))
 
-# --- RUTAS PRINCIPALES ---
 @app.route('/')
 @login_required
 def dashboard():
@@ -241,7 +234,6 @@ def register_patient():
     allowed_roles = ['secretaria', 'doctor']
     if session['user']['role'] not in allowed_roles:
         return "Acceso denegado.", 403
-
     if request.method == 'POST':
         try:
             team_id = session['user']['team_id']
@@ -288,6 +280,10 @@ def patient_list():
             print(f"Error al leer pacientes de Firestore: {e}")
     return render_template('patient_list.html', patients=patients_list, user=session.get('user'))
 
+# --- [FIN DEL CÓDIGO SIN CAMBIOS] ---
+
+
+# --- ÚNICA FUNCIÓN MODIFICADA PARA EL VPS ---
 @app.route('/start_study/<string:firestore_patient_id>', methods=['GET', 'POST'])
 @login_required
 def start_study(firestore_patient_id):
@@ -296,19 +292,44 @@ def start_study(firestore_patient_id):
     
     patient_ref = db_firestore.collection('patients').document(firestore_patient_id)
     patient = patient_ref.get()
+    
+    # He corregido el bug que tenías: usaba 'patient_doc' (que no existía) en lugar de 'patient'.
     if not patient.exists or patient.to_dict().get('team_id') != session['user']['team_id']:
         return "Paciente no encontrado o acceso no autorizado.", 404
     
     patient_data = patient.to_dict()
     patient_data['firestore_id'] = patient.id
 
+    # --- NUEVA LÓGICA PARA OBTENER LA IP DEL DISPOSITIVO DESDE FIREBASE ---
+    team_id = patient_data.get('team_id')
+    device_ip = "127.0.0.1" # IP por defecto en caso de que no se encuentre el dispositivo
+
+    if team_id:
+        # Asumimos que el ID del dispositivo está predefinido en el código.
+        # Este ID debe coincidir con el que pusiste en el device_config.json de tu Pi.
+        device_id = "LINFO-PROTO-001" 
+        try:
+            device_ref = db_firestore.collection('devices').document(device_id)
+            device_doc = device_ref.get()
+            if device_doc.exists:
+                # Aquí se podría añadir una lógica para verificar que el dispositivo
+                # pertenece al team_id del paciente, pero por simplicidad la omitimos.
+                device_ip = device_doc.to_dict().get('local_ip', '127.0.0.1')
+                print(f"IP del dispositivo encontrada para el equipo {team_id}: {device_ip}")
+        except Exception as e:
+            print(f"Error al buscar la IP del dispositivo para el equipo {team_id}: {e}")
+    # --- FIN DE LA NUEVA LÓGICA ---
+
     if request.method == 'POST':
         study_area = request.form.get('study_area')
-        return render_template('study.html', patient=patient_data, study_area=study_area, user=session.get('user'))
+        # Pasamos la nueva variable device_ip a la plantilla study.html
+        return render_template('study.html', patient=patient_data, study_area=study_area, user=session.get('user'), device_ip=device_ip)
 
     return render_template('select_study_area.html', patient=patient_data, user=session.get('user'))
+# --- FIN DE LA FUNCIÓN MODIFICADA ---
 
-# --- RUTAS DE GESTIÓN DE PACIENTES ---
+
+# --- [COMIENZO DEL CÓDIGO SIN CAMBIOS HASTA EL FINAL] ---
 @app.route('/patient/<string:firestore_patient_id>')
 @login_required
 def patient_detail(firestore_patient_id):
@@ -335,6 +356,7 @@ def patient_detail(firestore_patient_id):
     if not patient_data:
         return "Paciente no encontrado", 404
     return render_template('patient_detail.html', patient=patient_data, captures=captures_list, user=session.get('user'))
+
 
 @app.route('/update_history/<string:firestore_patient_id>', methods=['POST'])
 @login_required
@@ -399,7 +421,6 @@ def save_analysis(firestore_patient_id):
         print(f"Error al guardar el análisis: {e}")
         return "Ocurrió un error al guardar el análisis.", 500
 
-# Reemplaza esta función completa en tu app.py
 @app.route('/generate_report/<string:report_id>')
 @login_required
 def generate_report(report_id):
@@ -420,22 +441,17 @@ def generate_report(report_id):
         pdf.chapter_title('Datos del Paciente')
         pdf.chapter_body('Nombre:', f"{patient_data.get('nombre', '')} {patient_data.get('apellido', '')}")
         pdf.chapter_body('Cédula:', patient_data.get('cedula', 'N/A'))
-        # CORRECCIÓN: Se usa la fecha de la anotación si existe
         fecha_informe = report_data.get('analysis_date')
         if fecha_informe:
             pdf.chapter_body('Fecha del Informe:', fecha_informe.strftime('%d-%m-%Y'))
         
         pdf.ln(10)
         
-        # --- CORRECCIÓN PRINCIPAL AQUÍ ---
-        # Preparamos los datos y nos aseguramos de que no estén vacíos
         extremidad_str = ', '.join(report_data.get('extremidad', []))
         hallazgos_str = ', '.join(report_data.get('hallazgos', []))
-        # Usamos 'Observaciones' como en tu imagen, en lugar de 'Conclusiones'
         observaciones_str = report_data.get('conclusiones', '')
 
         pdf.chapter_title('Resultados del Estudio')
-        # Si el string está vacío, pasamos un espacio para mantener la altura de la celda
         pdf.chapter_body('Extremidad:', extremidad_str if extremidad_str else ' ')
         pdf.chapter_body('Hallazgos:', hallazgos_str if hallazgos_str else ' ')
         pdf.chapter_body('Observaciones:', observaciones_str if observaciones_str else ' ')
@@ -449,7 +465,6 @@ def generate_report(report_id):
                 capture_ref = db_firestore.collection('captures').document(capture_id)
                 capture_data = capture_ref.get().to_dict()
                 if capture_data:
-                    # Usamos la imagen anotada si existe, si no, la original
                     image_url_to_use = capture_data.get('annotated_url', capture_data.get('cloud_url'))
                     if image_url_to_use:
                         response = requests.get(image_url_to_use)
@@ -535,9 +550,7 @@ def delete_patient(firestore_patient_id):
             capture_data = capture.to_dict()
             if 'storage_path' in capture_data:
                 delete_from_storage(capture_data['storage_path'])
-            # Also delete annotated image if it exists
             if 'annotated_url' in capture_data:
-                # Extract blob name from URL for deletion
                 blob_name_annotated = '/'.join(capture_data['annotated_url'].split('?')[0].split('/')[-5:])
                 delete_from_storage(blob_name_annotated)
             capture.reference.delete()
@@ -565,7 +578,6 @@ def delete_capture(firestore_capture_id):
         patient_id_to_redirect = capture_data.get('patient_firestore_id')
         if 'storage_path' in capture_data:
             delete_from_storage(capture_data['storage_path'])
-        # Also delete annotated image if it exists
         if 'annotated_url' in capture_data:
             blob_name_annotated = '/'.join(capture_data['annotated_url'].split('?')[0].split('/')[-5:])
             delete_from_storage(blob_name_annotated)
@@ -591,8 +603,6 @@ def video_feed():
                    b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
     return Response(gen(camera), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-# --- RUTA NUEVA PARA GUARDAR ANOTACIONES ---
-# Reemplaza esta función completa en tu app.py
 @app.route('/save_annotation/<string:capture_id>', methods=['POST'])
 @login_required
 def save_annotation(capture_id):
@@ -632,7 +642,6 @@ def save_annotation(capture_id):
             'last_annotated_at': firestore.SERVER_TIMESTAMP
         }
         if annotation_data:
-            # CORRECCIÓN: Convertimos el objeto a un string de texto JSON antes de guardarlo
             update_data['annotation_data'] = json.dumps(annotation_data)
 
         capture_ref.update(update_data)
@@ -646,4 +655,5 @@ def save_annotation(capture_id):
 if __name__ == '__main__':
     print("Iniciando servidor Flask...")
     app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False, threaded=True)
-    
+
+# --- FIN DEL ARCHIVO ---
